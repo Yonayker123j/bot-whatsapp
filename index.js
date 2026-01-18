@@ -1,15 +1,32 @@
+// =====================
+// IMPORTS
+// =====================
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const express = require('express');
 
+// =====================
+// CONFIGURACIÓN
+// =====================
 const PREFIX = '!';
 const OWNER = '1234567890@c.us'; // opcional
-
-const app = express();
 const PORT = process.env.PORT || 3000;
 
+// =====================
+// EXPRESS PARA 24/7
+// =====================
+const app = express();
+app.get('/', (req, res) => res.send('🤖 Bot WhatsApp activo ✅'));
+app.listen(PORT, () => console.log(`Servidor Express escuchando en puerto ${PORT}`));
+
+// =====================
+// CONFIGURACIÓN DEL CLIENTE
+// =====================
 const client = new Client({
-    authStrategy: new LocalAuth(),
+    authStrategy: new LocalAuth({
+        // Directorio persistente en Render
+        dataPath: '/mnt/data/session'
+    }),
     puppeteer: {
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -17,47 +34,39 @@ const client = new Client({
 });
 
 // =====================
-// EXPRESS: RUTA PARA MANTENER EL BOT VIVO
-// =====================
-app.get('/', (req, res) => {
-    res.send('Bot WhatsApp activo ✅');
-});
-
-app.listen(PORT, () => {
-    console.log(`Servidor Express escuchando en puerto ${PORT}`);
-});
-
-// =====================
-// WHATSAPP CLIENT EVENTS
+// EVENTOS WHATSAPP
 // =====================
 
+// QR para escanear
 client.on('qr', qr => {
     qrcode.generate(qr, { small: true });
-    console.log('📲 Escanea el QR');
+    console.log('📲 Escanea el QR en tu WhatsApp');
 });
 
+// Bot listo
 client.on('ready', () => {
-    console.log('🤖 Bot conectado');
+    console.log('🤖 Bot conectado y listo!');
 });
 
+// Fallo de autenticación
 client.on('auth_failure', () => {
-    console.log('❌ Fallo de autenticación');
+    console.log('❌ Fallo de autenticación, vuelve a escanear el QR');
 });
 
+// Desconexión
 client.on('disconnected', reason => {
-    console.log('⚠️ Desconectado:', reason);
+    console.log('⚠️ Bot desconectado:', reason);
 });
 
 // =====================
 // BIENVENIDA / DESPEDIDA
 // =====================
-
 client.on('group_join', async notification => {
     const chat = await notification.getChat();
     const user = notification.id.participant;
 
     chat.sendMessage(
-        `👋 Bienvenido @${user.split('@')[0]}\nUsa *${PREFIX}help*`,
+        `👋 Bienvenido @${user.split('@')[0]}!\nUsa *${PREFIX}help* para ver comandos`,
         { mentions: [user] }
     );
 });
@@ -75,7 +84,6 @@ client.on('group_leave', async notification => {
 // =====================
 // MENSAJES / COMANDOS
 // =====================
-
 client.on('message_create', async msg => {
     try {
         if (msg.fromMe) return;
@@ -96,7 +104,6 @@ client.on('message_create', async msg => {
         const command = args.shift().toLowerCase();
 
         switch (command) {
-
             case 'ping':
                 msg.reply('🏓 Pong');
                 break;
@@ -114,7 +121,7 @@ ${PREFIX}kick @user`
 
             case 'reglas':
                 msg.reply(
-`📜 *REGLAS*
+`📜 *REGLAS DEL GRUPO*
 1. Respeto
 2. No spam
 3. No links
@@ -124,7 +131,7 @@ ${PREFIX}kick @user`
 
             case 'link':
                 if (!isGroup) return msg.reply('❌ Solo grupos');
-                if (!chat.inviteCode) return msg.reply('❌ No tengo permiso');
+                if (!chat.inviteCode) return msg.reply('❌ No tengo permiso para ver el link');
                 msg.reply(`🔗 https://chat.whatsapp.com/${chat.inviteCode}`);
                 break;
 
@@ -133,13 +140,12 @@ ${PREFIX}kick @user`
 
                 const admins = chat.participants.filter(p => p.isAdmin || p.isSuperAdmin);
                 const isAdmin = admins.some(a => a.id._serialized === msg.author);
+                if (!isAdmin) return msg.reply('❌ Solo admins pueden usar este comando');
 
-                if (!isAdmin) return msg.reply('❌ No eres admin');
+                const userToKick = msg.mentionedIds[0];
+                if (!userToKick) return msg.reply('❌ Menciona a alguien');
 
-                const user = msg.mentionedIds[0];
-                if (!user) return msg.reply('❌ Menciona a alguien');
-
-                await chat.removeParticipants([user]);
+                await chat.removeParticipants([userToKick]);
                 msg.reply('👢 Usuario eliminado');
                 break;
 
@@ -153,5 +159,6 @@ ${PREFIX}kick @user`
 });
 
 // =====================
+// INICIALIZAR CLIENTE
+// =====================
 client.initialize();
-
