@@ -1,19 +1,15 @@
-# render.yaml - Configuración para desplegar bot WhatsApp en Render
-
+# render.yaml
 services:
   - type: web
     name: bot-whatsapp
     env: node
-    region: oregon  # Puedes cambiar a la región que prefieras
-    plan: free       # O paid si quieres más recursos
-    branch: main     # Rama que se desplegará
+    plan: free
+    region: oregon
     buildCommand: "npm install"
-    startCommand: "npm start"
-    autoDeploy: true
+    startCommand: "node index.js"
     envVars:
       - key: PORT
         value: "3000"
-      - key: PREFIX
-        value: "!"
-      - key: OWNER
-        value: "1234567890@s.whatsapp.net"
+    persistentDirectories:
+      - path: /mnt/data/auth_info
+        description: "Directorio para guardar la sesión de WhatsApp"
