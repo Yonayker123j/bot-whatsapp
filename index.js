@@ -1,8 +1,12 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const express = require('express');
 
 const PREFIX = '!';
 const OWNER = '1234567890@c.us'; // opcional
+
+const app = express();
+const PORT = process.env.PORT || 3000;
 
 const client = new Client({
     authStrategy: new LocalAuth(),
@@ -13,7 +17,18 @@ const client = new Client({
 });
 
 // =====================
-// CONEXIÓN
+// EXPRESS: RUTA PARA MANTENER EL BOT VIVO
+// =====================
+app.get('/', (req, res) => {
+    res.send('Bot WhatsApp activo ✅');
+});
+
+app.listen(PORT, () => {
+    console.log(`Servidor Express escuchando en puerto ${PORT}`);
+});
+
+// =====================
+// WHATSAPP CLIENT EVENTS
 // =====================
 
 client.on('qr', qr => {
@@ -139,3 +154,4 @@ ${PREFIX}kick @user`
 
 // =====================
 client.initialize();
+
